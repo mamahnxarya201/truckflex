@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -21,7 +22,11 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             ItemTypeSeeder::class,
-            ItemSeeder::class
+            ItemSeeder::class,
+            RackBlockSeeder::class,
+            RackLevelSeeder::class,
+            WarehouseSeeder::class,
+            RackSeeder::class
         ]);
     }
 }
