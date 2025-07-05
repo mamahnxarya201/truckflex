@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ItemResource\Pages;
 use App\Filament\Resources\ItemResource\RelationManagers;
 use App\Models\Item;
+use App\Models\ItemType;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Filters\SelectFilter;
+use App\Support\Helpers;
 
 class ItemResource extends Resource
 {
@@ -46,6 +48,7 @@ class ItemResource extends Resource
                 Select::make('item_type_id')
                     ->label('Tipe Barang')
                     ->relationship('itemType', 'name')
+                    ->options(fn() => Helpers::dropdownOptions(ItemType::class))
                     ->required()
                     ->searchable(),
 

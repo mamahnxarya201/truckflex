@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\WarehouseResource\Pages;
 use App\Filament\Resources\WarehouseResource\RelationManagers;
 use App\Filament\Resources\WarehouseResource\RelationManagers\RacksRelationManager;
+use App\Support\Helpers;
+use App\Models\User;
 use App\Models\Warehouse;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -35,7 +37,8 @@ class WarehouseResource extends Resource
                 Forms\Components\Select::make('manager_id')
                     ->label('Penanggung Jawab')
                     ->relationship('manager', 'name')
-                    ->options(fn() => \App\Models\User::orderBy('name')->take(5)->pluck('name', 'id'))
+                    ->options(fn () => Helpers::dropdownOptions(User::class))
+                    // ->options(fn() => \App\Models\User::orderBy('name')->take(5)->pluck('name', 'id'))
                     ->searchable(),
                 Forms\Components\TextInput::make('zone')->label('Zona')->nullable(),
                 Forms\Components\TextInput::make('type')->label('Tipe')->nullable(),

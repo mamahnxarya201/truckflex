@@ -4,7 +4,7 @@ namespace App\Filament\Resources\WarehouseResource\RelationManagers;
 
 use App\Models\RackLevel;
 use App\Models\RackBlock;
-
+use App\Support\Helpers;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -33,14 +33,14 @@ class RacksRelationManager extends RelationManager
             Select::make('rack_block_id')
                 ->label('Blok')
                 ->relationship('block', 'name')
-                ->options(fn() => \App\Models\RackBlock::orderBy('name')->take(5)->pluck('name', 'id'))
+                ->options(fn () => Helpers::dropdownOptions(RackBlock::class))
                 ->searchable()
                 ->required(),
 
             Select::make('rack_level_id')
                 ->label('Level')
                 ->relationship('level', 'name')
-                ->options(fn() => \App\Models\RackLevel::orderBy('name')->take(5)->pluck('name', 'id'))
+                ->options(fn() => Helpers::dropdownOptions(RackLevel::class))
                 ->searchable()
                 ->native(false)
                 ->required(),
