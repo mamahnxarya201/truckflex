@@ -35,6 +35,7 @@ class WarehouseResource extends Resource
                 Forms\Components\Select::make('manager_id')
                     ->label('Penanggung Jawab')
                     ->relationship('manager', 'name')
+                    ->options(fn() => \App\Models\User::orderBy('name')->take(5)->pluck('name', 'id'))
                     ->searchable(),
                 Forms\Components\TextInput::make('zone')->label('Zona')->nullable(),
                 Forms\Components\TextInput::make('type')->label('Tipe')->nullable(),
