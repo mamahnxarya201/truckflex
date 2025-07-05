@@ -21,7 +21,7 @@ class ItemTypeResource extends Resource
     protected static ?string $model = ItemType::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-tag';
-    protected static ?string $navigationGroup = 'Master Data';
+    protected static ?string $navigationGroup = 'Master Data Inventaris';
     protected static ?string $modelLabel = 'Tipe Barang';
     protected static ?string $pluralModelLabel = 'Tipe Barang';
 
