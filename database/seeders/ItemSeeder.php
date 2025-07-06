@@ -2,16 +2,23 @@
 
 namespace Database\Seeders;
 
-use App\Models\Item;
 use Illuminate\Database\Seeder;
+use App\Models\ItemType;
+use App\Models\Item;
 
 class ItemSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        Item::factory()->count(20)->create();
+        $type = ItemType::firstOrCreate([
+            'name' => 'Suku Cadang',
+            'code' => 'SPARE',
+            'is_active' => true,
+            'description' => 'Jenis item suku cadang kendaraan',
+        ]);
+
+        Item::factory()->count(10)->create([
+            'item_type_id' => $type->id,
+        ]);
     }
 }

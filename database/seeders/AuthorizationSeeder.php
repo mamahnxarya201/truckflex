@@ -37,5 +37,17 @@ class AuthorizationSeeder extends Seeder
             'email' => 'superadmin@truckflex.com',
             'password' => '12345678'
         ])->assignRole($superadminRole);
+
+        User::factory()->create([
+            'name' => 'Manager Pusat',
+            'email' => 'manager@truckflex.com',
+            'password' => '12345678'
+        ]);
+
+        User::factory()->create([
+            'name' => 'Driver Satu',
+            'email' => 'driver@truckflex.com',
+            'password' => '12345678'
+        ]);
     }
 }

@@ -3,25 +3,22 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use App\Models\DeliveryDetail;
-use App\Models\Item;
 use App\Models\Delivery;
+use App\Models\Item;
 
 class DeliveryDetailFactory extends Factory
 {
-    protected $model = DeliveryDetail::class;
-
     public function definition(): array
     {
         $item = Item::inRandomOrder()->first();
 
         return [
-            'delivery_id' => Delivery::inRandomOrder()->first()?->id ?? 1,
-            'item_id' => $item?->id ?? 1,
-            'quantity' => fake()->numberBetween(1, 20),
+            'delivery_id' => Delivery::inRandomOrder()->first()?->id,
+            'item_id' => $item?->id,
+            'quantity' => $qty = fake()->numberBetween(1, 20),
             'unit' => $item?->unit ?? 'pcs',
-            'weight_kg' => fake()->randomFloat(2, 1, 100),
-            'is_verified' => fake()->boolean(70), // 70% verified
+            'weight_kg' => $item?->weight_kg * $qty,
+            'is_verified' => fake()->boolean(80), // default 80% true
             'note' => fake()->optional()->sentence(),
         ];
     }

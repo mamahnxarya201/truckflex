@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('code')->unique();
             $table->string('name');
-            $table->boolean('forklift_accessible')->default(false);
+            $table->boolean('forklift_accessible')->default(true);
             $table->text('note')->nullable();
 
             $table->softDeletesDatetime();

@@ -2,17 +2,13 @@
 
 namespace Database\Seeders;
 
-use App\Models\Delivery;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\Delivery;
 
 class DeliverySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        Delivery::factory(10)->create();
+        Delivery::factory()->count(2)->create();
     }
 }

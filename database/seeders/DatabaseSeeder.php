@@ -20,17 +20,14 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             AuthorizationSeeder::class,
-            ItemTypeSeeder::class,
             ItemSeeder::class,
-            RackBlockSeeder::class,
-            RackLevelSeeder::class,
             WarehouseSeeder::class,
             RackSeeder::class,
-            VehicleTypeSeeder::class,
             VehicleSeeder::class,
             DeliveryStatusSeeder::class,
             DeliverySeeder::class,
             DeliveryDetailSeeder::class,
+            LedgerSeeder::class
         ]);
     }
 }
