@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call([
+            AuthorizationSeeder::class,
             ItemTypeSeeder::class,
             ItemSeeder::class,
             RackBlockSeeder::class,
