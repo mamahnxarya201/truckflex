@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('code')->unique();
             $table->string('name');
             $table->string('unit');
-            $table->decimal('weight_kg', 8, 3)->nullable(); // e.g. 12345.678
-            $table->decimal('cost_price', 15, 2)->nullable(); // e.g. for currency
+            $table->decimal('weight_kg', 8, 3); // e.g. 12345.678
+            $table->decimal('cost_price', 15, 2); // e.g. for currency
             $table->text('description')->nullable();
 
             $table->timestamps();
