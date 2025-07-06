@@ -13,9 +13,10 @@ class StockViewer extends Page implements Tables\Contracts\HasTable
 {
     use Tables\Concerns\InteractsWithTable;
 
+    protected static ?string $navigationIcon = 'heroicon-o-inbox-stack';
     protected static string $view = 'filament.pages.stock-viewer';
-
-    protected static ?string $title = 'Stock Viewer';
+    protected static ?string $navigationGroup = 'Inventaris';
+    protected static ?string $title = 'Stock Barang';
 
     public static function table(Table $table): Table
     {
