@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -27,7 +25,12 @@ class DatabaseSeeder extends Seeder
             RackBlockSeeder::class,
             RackLevelSeeder::class,
             WarehouseSeeder::class,
-            RackSeeder::class
+            RackSeeder::class,
+            VehicleTypeSeeder::class,
+            VehicleSeeder::class,
+            DeliveryStatusSeeder::class,
+            DeliverySeeder::class,
+            DeliveryDetailSeeder::class,
         ]);
     }
 }
