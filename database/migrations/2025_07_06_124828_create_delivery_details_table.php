@@ -21,6 +21,8 @@ return new class extends Migration
             $table->decimal('weight_kg', 8, 2)->nullable();
             $table->boolean('is_verified')->default(false);
             $table->text('note')->nullable();
+
+            $table->softDeletesDatetime();
             $table->timestamps();
         });
     }

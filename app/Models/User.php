@@ -43,4 +43,19 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function vehicleLogs()
+    {
+        return $this->hasMany(VehicleLog::class, 'driver_id');
+    }
+
+    public function deliveriesDriven()
+    {
+        return $this->hasMany(Delivery::class, 'driver_id');
+    }
+
+    public function deliveriesValidated()
+    {
+        return $this->hasMany(Delivery::class, 'validated_by');
+    }
 }

@@ -9,7 +9,7 @@ class Vehicle extends Model
 {
     use HasFactory;
 
-     protected $fillable = [
+    protected $fillable = [
         'vehicle_type_id',
         'license_plate',
         'chassis_number',
@@ -26,5 +26,10 @@ class Vehicle extends Model
     public function type()
     {
         return $this->belongsTo(VehicleType::class, 'vehicle_type_id');
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(VehicleLog::class);
     }
 }
