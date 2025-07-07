@@ -19,6 +19,13 @@ class PermissionResource extends Resource
     protected static ?string $navigationGroup = 'System Management';
     
     protected static ?int $navigationSort = 2;
+    
+    public static function canAccess(): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && !$user->hasRole('driver');
+    }
 
     public static function getNavigationBadge(): ?string
     {

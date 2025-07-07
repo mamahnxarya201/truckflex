@@ -13,6 +13,16 @@ use Illuminate\Support\Facades\DB;
 class StockViewer extends Page implements Tables\Contracts\HasTable
 {
     use Tables\Concerns\InteractsWithTable;
+    
+    /**
+     * Check if the current user can access this page.
+     */
+    public static function canAccess(): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        return $user && $user->hasRole('superadmin') || ($user && $user->hasRole('warehouse_manager'));
+    }
 
     protected static ?string $navigationIcon = 'heroicon-o-inbox-stack';
     protected static string $view = 'filament.pages.stock-viewer';
