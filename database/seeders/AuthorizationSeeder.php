@@ -19,79 +19,79 @@ class AuthorizationSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create permissions
-        Permission::create(['name' => 'crud-item']);
+        // Create permissions - using a more unified approach
         Permission::create(['name' => 'view-item']);
-        Permission::create(['name' => 'manage-warehouse']);
+        Permission::create(['name' => 'crud-item']);
         Permission::create(['name' => 'view-all-warehouses']);
+        Permission::create(['name' => 'manage-warehouse']);
+        Permission::create(['name' => 'view-deliveries']);
+        Permission::create(['name' => 'manage-deliveries']);
+        Permission::create(['name' => 'view-assigned-deliveries']);
+        Permission::create(['name' => 'view-vehicles']);
+        Permission::create(['name' => 'manage-vehicles']);
+        Permission::create(['name' => 'view-all-stock']);
         Permission::create(['name' => 'manage-incoming']);
         Permission::create(['name' => 'manage-outgoing']);
-        Permission::create(['name' => 'manage-deliveries']);
-        Permission::create(['name' => 'view-all-stock']);
-        Permission::create(['name' => 'view-assigned-deliveries']);
+        Permission::create(['name' => 'view-reports']);
 
         // Superadmin role - has all permissions
         $superadminRole = Role::create(['name' => 'superadmin']);
         $superadminRole->givePermissionTo([
-            'crud-item', 
-            'view-item', 
-            'manage-warehouse', 
-            'view-all-warehouses', 
-            'manage-incoming', 
-            'manage-outgoing', 
-            'manage-deliveries',
-            'view-all-stock'
-        ]);
-
-        // Warehouse Worker role - limited permissions
-        $warehouseWorker = Role::create(['name' => 'warehouse_worker']);
-        $warehouseWorker->givePermissionTo(['view-item']);
-
-        // Warehouse Admin role - can manage assigned warehouse
-        $warehouseAdmin = Role::create(['name' => 'warehouse_admin']);
-        $warehouseAdmin->givePermissionTo([
             'view-item',
-            'manage-warehouse',
+            'crud-item', 
+            'view-all-warehouses', 
+            'manage-warehouse', 
+            'view-deliveries', 
+            'manage-deliveries',
+            'view-assigned-deliveries',
+            'view-vehicles',
+            'manage-vehicles',
+            'view-all-stock',
             'manage-incoming',
             'manage-outgoing',
+            'view-reports'
+        ]);
+
+        // Warehouse Manager role - can manage their assigned warehouse
+        $warehouseManagerRole = Role::create(['name' => 'warehouse_manager']);
+        $warehouseManagerRole->givePermissionTo([
+            'view-item',
+            'crud-item',
+            'view-all-warehouses',    // Can view all warehouses
+            'manage-warehouse',       // But can only manage their own (controlled by policy)
+            'view-deliveries',        // Can view deliveries related to their warehouse
+            'manage-deliveries',      // Can manage deliveries related to their warehouse
+            'view-vehicles',          // Can view all vehicles
+            'manage-vehicles',        // Can manage vehicles assigned to their warehouse
+            'view-all-stock',         // Can view stock inventory
+            'manage-incoming',        // Can manage incoming inventory
+            'manage-outgoing',        // Can manage outgoing inventory
+            'view-reports'            // Can view reports related to their warehouse
         ]);
         
-        // Driver role - can only see assigned deliveries
+        // Driver role - can only see assigned deliveries and vehicles
         $driverRole = Role::create(['name' => 'driver']);
         $driverRole->givePermissionTo([
             'view-assigned-deliveries',
+            'view-vehicles',
+            'view-reports'        // Limited reports for their deliveries
         ]);
 
-        // Create users
-        $warehouseWorkerUser = User::factory()->create([
-            'name' => 'Pekerja Gudang',
-            'email' => 'kerja@truckflex.com',
-            'password' => '12345678'
-        ])->assignRole($warehouseWorker);
-
+        // Create users with our new unified role structure
+        // Superadmin user
         $superadminUser = User::factory()->create([
             'name' => 'Superadmin',
             'email' => 'superadmin@truckflex.com',
             'password' => '12345678'
         ])->assignRole($superadminRole);
 
-        $warehouseAdminUser = User::factory()->create([
-            'name' => 'Admin Gudang',
-            'email' => 'admin@truckflex.com',
-            'password' => '12345678'
-        ])->assignRole($warehouseAdmin);
-        
-        // Assign warehouse 1 to the warehouse admin if any warehouses exist
-        if ($warehouse = Warehouse::first()) {
-            $warehouseAdminUser->warehouse_id = $warehouse->id;
-            $warehouseAdminUser->save();
-        }
-
-        User::factory()->create([
-            'name' => 'Manager Pusat',
+        // Warehouse Manager user
+        $warehouseManagerUser = User::factory()->create([
+            'name' => 'Manager Gudang',
             'email' => 'manager@truckflex.com',
             'password' => '12345678'
-        ]);
+            // warehouse_id will be assigned in WarehouseSeeder
+        ])->assignRole($warehouseManagerRole);
 
         $driverUser = User::factory()->create([
             'name' => 'Driver Satu',
