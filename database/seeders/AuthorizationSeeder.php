@@ -28,6 +28,7 @@ class AuthorizationSeeder extends Seeder
         Permission::create(['name' => 'manage-outgoing']);
         Permission::create(['name' => 'manage-deliveries']);
         Permission::create(['name' => 'view-all-stock']);
+        Permission::create(['name' => 'view-assigned-deliveries']);
 
         // Superadmin role - has all permissions
         $superadminRole = Role::create(['name' => 'superadmin']);
@@ -53,6 +54,12 @@ class AuthorizationSeeder extends Seeder
             'manage-warehouse',
             'manage-incoming',
             'manage-outgoing',
+        ]);
+        
+        // Driver role - can only see assigned deliveries
+        $driverRole = Role::create(['name' => 'driver']);
+        $driverRole->givePermissionTo([
+            'view-assigned-deliveries',
         ]);
 
         // Create users
@@ -86,10 +93,10 @@ class AuthorizationSeeder extends Seeder
             'password' => '12345678'
         ]);
 
-        User::factory()->create([
+        $driverUser = User::factory()->create([
             'name' => 'Driver Satu',
             'email' => 'driver@truckflex.com',
             'password' => '12345678'
-        ]);
+        ])->assignRole($driverRole);
     }
 }

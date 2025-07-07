@@ -12,10 +12,67 @@ use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class EditDelivery extends EditRecord
 {
     protected static string $resource = DeliveryResource::class;
+    
+    protected function canEdit(): bool
+    {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return false;
+        }
+        
+        // Get the current delivery
+        $delivery = $this->getRecord();
+        
+        // Check if user is driver
+        $isDriver = DB::table('model_has_roles')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->where('model_has_roles.model_id', $user->id)
+            ->where('roles.name', 'driver')
+            ->exists();
+            
+        if ($isDriver) {
+            // Drivers can't edit deliveries at all
+            return false;
+        }
+        
+        // Check if user is superadmin
+        $isSuperAdmin = DB::table('model_has_roles')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->where('model_has_roles.model_id', $user->id)
+            ->where('roles.name', 'superadmin')
+            ->exists();
+            
+        // Superadmins can edit any delivery
+        if ($isSuperAdmin) {
+            return true;
+        }
+        
+        // Check if user has manage-deliveries permission
+        $hasManageDeliveriesPermission = DB::table('model_has_permissions')
+            ->join('permissions', 'model_has_permissions.permission_id', '=', 'permissions.id')
+            ->where('model_has_permissions.model_id', $user->id)
+            ->where('permissions.name', 'manage-deliveries')
+            ->exists();
+            
+        // If user has no permissions to manage deliveries, they can't edit
+        if (!$hasManageDeliveriesPermission) {
+            return false;
+        }
+        
+        // For warehouse workers/admins, they can only edit deliveries related to their warehouse
+        if ($user->warehouse_id) {
+            return $delivery->from_warehouse_id === $user->warehouse_id || 
+                   $delivery->to_warehouse_id === $user->warehouse_id;
+        }
+        
+        return false;
+    }
 
     protected function afterSave(): void
     {

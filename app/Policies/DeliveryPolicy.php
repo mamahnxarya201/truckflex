@@ -13,6 +13,11 @@ class DeliveryPolicy
      */
     public function viewAny(User $user): bool
     {
+        // Drivers can see the delivery listing but will be filtered to only their deliveries
+        if ($user->hasRole('driver')) {
+            return $user->hasPermissionTo('view-assigned-deliveries');
+        }
+        
         // Anyone with view-all-stock or manage-deliveries permission can view deliveries
         return $user->hasPermissionTo('view-all-stock') || 
                $user->hasPermissionTo('manage-deliveries');
@@ -26,6 +31,11 @@ class DeliveryPolicy
         // Superadmin can view any delivery
         if ($user->hasRole('superadmin')) {
             return true;
+        }
+        
+        // Driver can only view deliveries assigned to them
+        if ($user->hasRole('driver')) {
+            return $delivery->driver_id === $user->id;
         }
         
         // Warehouse admin can only view deliveries related to their warehouse

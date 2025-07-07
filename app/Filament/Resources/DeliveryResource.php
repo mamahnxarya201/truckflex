@@ -19,8 +19,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DeliveryResource extends Resource
 {
@@ -34,13 +34,27 @@ class DeliveryResource extends Resource
     
     protected static ?int $navigationSort = 1;
     
-    public static function getNavigationBadge(): ?string
+    public static function getEloquentQuery(): Builder
     {
-        $user = auth()->user();
-        $query = Delivery::query();
+        $query = parent::getEloquentQuery();
+        $user = Auth::user();
         
-        // If user has a warehouse_id (indicating they are warehouse admin)
-        // filter by that warehouse
+        if (!$user) {
+            return $query;
+        }
+        
+        // Driver can only see deliveries assigned to them
+        $isDriver = DB::table('model_has_roles')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->where('model_has_roles.model_id', $user->id)
+            ->where('roles.name', 'driver')
+            ->exists();
+            
+        if ($isDriver) {
+            return $query->where('driver_id', $user->id);
+        }
+        
+        // Warehouse worker/admin can only see deliveries related to their warehouse
         if ($user->warehouse_id) {
             $warehouseId = $user->warehouse_id;
             $query->where(function ($q) use ($warehouseId) {
@@ -48,6 +62,13 @@ class DeliveryResource extends Resource
                   ->orWhere('to_warehouse_id', $warehouseId);
             });
         }
+        
+        return $query;
+    }
+    
+    public static function getNavigationBadge(): ?string
+    {
+        $query = static::getEloquentQuery();
         
         return $query->where('delivery_status_id', DeliveryStatus::where('code', 'in_transit')->first()?->id ?? 0)->count();
     }
@@ -715,24 +736,5 @@ class DeliveryResource extends Resource
             'create' => Pages\CreateDelivery::route('/create'),
             'edit' => Pages\EditDelivery::route('/{record}/edit'),
         ];
-    }
-    
-    // Use our access policies to control access based on role
-    public static function getEloquentQuery(): Builder
-    {
-        $query = parent::getEloquentQuery();
-        $user = auth()->user();
-        
-        // If user has a warehouse_id (indicating they are warehouse admin)
-        // only show deliveries related to their warehouse
-        if ($user->warehouse_id) {
-            $warehouseId = $user->warehouse_id;
-            $query->where(function ($q) use ($warehouseId) {
-                $q->where('from_warehouse_id', $warehouseId)
-                  ->orWhere('to_warehouse_id', $warehouseId);
-            });
-        }
-        
-        return $query;
     }
 }

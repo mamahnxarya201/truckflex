@@ -12,10 +12,48 @@ use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class CreateDelivery extends CreateRecord
 {
     protected static string $resource = DeliveryResource::class;
+    
+    protected function canCreate(): bool
+    {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return false;
+        }
+        
+        // Driver shouldn't be able to create deliveries
+        $isDriver = DB::table('model_has_roles')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->where('model_has_roles.model_id', $user->id)
+            ->where('roles.name', 'driver')
+            ->exists();
+            
+        if ($isDriver) {
+            return false;
+        }
+        
+        // Check if user is superadmin
+        $isSuperAdmin = DB::table('model_has_roles')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->where('model_has_roles.model_id', $user->id)
+            ->where('roles.name', 'superadmin')
+            ->exists();
+            
+        // Check if user has manage-deliveries permission
+        $hasManageDeliveriesPermission = DB::table('model_has_permissions')
+            ->join('permissions', 'model_has_permissions.permission_id', '=', 'permissions.id')
+            ->where('model_has_permissions.model_id', $user->id)
+            ->where('permissions.name', 'manage-deliveries')
+            ->exists();
+            
+        // Only users with manage-deliveries permission or superadmins can create
+        return $isSuperAdmin || $hasManageDeliveriesPermission;
+    }
     
     protected function afterCreate(): void
     {
