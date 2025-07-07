@@ -98,5 +98,11 @@ class AuthorizationSeeder extends Seeder
             'email' => 'driver@truckflex.com',
             'password' => '12345678'
         ])->assignRole($driverRole);
+
+        $driverUser2 = User::factory()->create([
+            'name' => 'Driver Dua',
+            'email' => 'driver2@truckflex.com',
+            'password' => '12345678'
+        ])->assignRole($driverRole);
     }
 }
