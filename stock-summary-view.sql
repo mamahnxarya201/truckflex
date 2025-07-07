@@ -6,14 +6,15 @@ SELECT
     item_types.name AS item_type,
     w.name AS warehouse_name,
     w.id AS warehouse_id,
-    COALESCE(SUM(virtual_ledger.qty), 0) AS qty_virtual,
-    COALESCE(SUM(factual_ledger.qty), 0) AS qty_factual
+    CASE WHEN COALESCE(SUM(virtual_ledger.qty), 0) < 0 THEN 0 ELSE COALESCE(SUM(virtual_ledger.qty), 0) END AS qty_virtual,
+    CASE WHEN COALESCE(SUM(factual_ledger.qty), 0) < 0 THEN 0 ELSE COALESCE(SUM(factual_ledger.qty), 0) END AS qty_factual
 FROM
     items
     JOIN item_types ON items.item_type_id = item_types.id
     CROSS JOIN warehouses w
     -- Virtual Ledger Movements (Warehouse Level)
     LEFT JOIN (
+        -- Incoming to warehouse (positive)
         SELECT 
             item_id,
             to_warehouse_id AS warehouse_id,
@@ -27,10 +28,11 @@ FROM
         
         UNION ALL
         
+        -- Outgoing from warehouse (negative)
         SELECT 
             item_id,
             from_warehouse_id AS warehouse_id,
-            SUM(quantity) AS qty
+            SUM(-1 * quantity) AS qty
         FROM 
             ledger_virtual
         WHERE 
@@ -41,6 +43,7 @@ FROM
     
     -- Factual Ledger Movements (Rack Level)
     LEFT JOIN (
+        -- Incoming to rack (positive)
         SELECT 
             lf.item_id,
             r_to.warehouse_id,
@@ -55,6 +58,7 @@ FROM
             
         UNION ALL
         
+        -- Outgoing from rack (negative)
         SELECT 
             lf.item_id,
             r_from.warehouse_id,
@@ -68,4 +72,8 @@ FROM
             lf.item_id, r_from.warehouse_id
     ) factual_ledger ON factual_ledger.item_id = items.id AND factual_ledger.warehouse_id = w.id
 
-GROUP BY items.id, items.name, item_types.name, w.name, w.id;
+GROUP BY items.id, items.name, item_types.name, w.name, w.id
+HAVING 
+    (CASE WHEN COALESCE(SUM(virtual_ledger.qty), 0) < 0 THEN 0 ELSE COALESCE(SUM(virtual_ledger.qty), 0) END) > 0
+    OR 
+    (CASE WHEN COALESCE(SUM(factual_ledger.qty), 0) < 0 THEN 0 ELSE COALESCE(SUM(factual_ledger.qty), 0) END) > 0;
