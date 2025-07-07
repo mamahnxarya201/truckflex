@@ -13,7 +13,7 @@ class WarehouseSeeder extends Seeder
     {
         // Create Pusat warehouse user
         $pusatUser = User::firstOrCreate(
-            ['email' => 'gudangpusat@flextruck.com'],
+            ['email' => 'gudangpusat@truckflex.com'],
             [
                 'name' => 'Petugas Gudang Pusat',
                 'password' => '12345678',
@@ -38,7 +38,7 @@ class WarehouseSeeder extends Seeder
 
         // Create Cabang A warehouse user
         $cabangAUser = User::firstOrCreate(
-            ['email' => 'gudanga@flextruck.com'],
+            ['email' => 'gudanga@truckflex.com'],
             [
                 'name' => 'Petugas Gudang Cabang A',
                 'password' =>'12345678',
