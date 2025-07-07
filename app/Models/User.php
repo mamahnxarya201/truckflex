@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -22,6 +23,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'warehouse_id',
     ];
 
     /**
@@ -57,5 +59,37 @@ class User extends Authenticatable
     public function deliveriesValidated()
     {
         return $this->hasMany(Delivery::class, 'validated_by');
+    }
+    
+    /**
+     * Get the warehouse that the user is assigned to (for warehouse admins)
+     */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+    
+    /**
+     * Check if user is a warehouse admin
+     */
+    public function isWarehouseAdmin(): bool
+    {
+        return $this->hasRole('warehouse_admin');
+    }
+    
+    /**
+     * Check if user can access specific warehouse
+     */
+    public function canAccessWarehouse(int $warehouseId): bool
+    {
+        if ($this->hasRole('superadmin')) {
+            return true;
+        }
+        
+        if ($this->isWarehouseAdmin()) {
+            return $this->warehouse_id === $warehouseId;
+        }
+        
+        return false;
     }
 }
