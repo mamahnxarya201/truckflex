@@ -51,7 +51,13 @@ class DeliveryResource extends Resource
         }
         
         // Warehouse manager can only see deliveries related to their warehouse
-        if ($user->hasRole('warehouse_manager') && $user->warehouse_id) {
+        if ($user->hasRole('warehouse_manager')) {
+            // If warehouse_id is null, return empty query but don't restrict access to the panel
+            if (!$user->warehouse_id) {
+                return $query->where('id', 0); // No results but panel still accessible
+            }
+            
+            // Filter deliveries by warehouse manager's assigned warehouse
             return $query->where(function($query) use ($user) {
                 $query->where('from_warehouse_id', $user->warehouse_id)
                       ->orWhere('to_warehouse_id', $user->warehouse_id);

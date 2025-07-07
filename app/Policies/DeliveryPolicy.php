@@ -27,7 +27,9 @@ class DeliveryPolicy
         
         // Warehouse managers can view all deliveries related to their warehouse
         if ($user->hasRole('warehouse_manager')) {
-            return $user->hasPermissionTo('view-all-stock');
+            return $user->hasPermissionTo('view-deliveries');
+            // Always return true to show the panel regardless of whether there are deliveries
+            // The actual filtering happens in the DeliveryResource query
         }
         
         // Drivers can only see their assigned deliveries

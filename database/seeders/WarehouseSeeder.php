@@ -53,6 +53,11 @@ class WarehouseSeeder extends Seeder
             ]
         );
         
+        // Assign warehouse_manager role if it exists
+        if ($warehouseManagerRole) {
+            $cabangAUser->assignRole($warehouseManagerRole);
+        }
+        
         // Create Cabang A warehouse
         $cabangAWarehouse = Warehouse::create([
             'code' => 'WH-CBG',
