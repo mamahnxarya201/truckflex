@@ -5,14 +5,23 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Warehouse;
+use Spatie\Permission\Models\Role;
 
 class WarehouseSeeder extends Seeder
 {
     public function run(): void
     {
-        $manager = User::where('email', 'manager@truckflex.com')->first();
-
-        Warehouse::create([
+        // Create Pusat warehouse user
+        $pusatUser = User::firstOrCreate(
+            ['email' => 'gudangpusat@flextruck.com'],
+            [
+                'name' => 'Petugas Gudang Pusat',
+                'password' => '12345678',
+            ]
+        );
+        
+        // Create Pusat warehouse
+        $pusatWarehouse = Warehouse::create([
             'code' => 'WH-PST',
             'name' => 'Pusat',
             'description' => 'Gudang pusat utama',
@@ -20,10 +29,24 @@ class WarehouseSeeder extends Seeder
             'is_active' => true,
             'type' => 'central',
             'zone' => 'A',
-            'manager_id' => $manager->id,
+            'manager_id' => $pusatUser->id,
         ]);
+        
+        // Set user's warehouse_id
+        $pusatUser->warehouse_id = $pusatWarehouse->id;
+        $pusatUser->save();
 
-        Warehouse::create([
+        // Create Cabang A warehouse user
+        $cabangAUser = User::firstOrCreate(
+            ['email' => 'gudanga@flextruck.com'],
+            [
+                'name' => 'Petugas Gudang Cabang A',
+                'password' =>'12345678',
+            ]
+        );
+        
+        // Create Cabang A warehouse
+        $cabangAWarehouse = Warehouse::create([
             'code' => 'WH-CBG',
             'name' => 'Cabang A',
             'description' => 'Gudang cabang pertama',
@@ -31,7 +54,11 @@ class WarehouseSeeder extends Seeder
             'is_active' => true,
             'type' => 'branch',
             'zone' => 'B',
-            'manager_id' => $manager->id,
+            'manager_id' => $cabangAUser->id,
         ]);
+        
+        // Set user's warehouse_id
+        $cabangAUser->warehouse_id = $cabangAWarehouse->id;
+        $cabangAUser->save();
     }
 }
