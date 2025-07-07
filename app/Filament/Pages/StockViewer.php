@@ -7,6 +7,7 @@ use Filament\Pages\Page;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Database\Query\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class StockViewer extends Page implements Tables\Contracts\HasTable
@@ -20,7 +21,26 @@ class StockViewer extends Page implements Tables\Contracts\HasTable
 
     public static function table(Table $table): Table
     {
-        // dd(StockSummary::query());
+        $query = StockSummary::query();
+        
+        // Filter by warehouse if user is logged in and has a warehouse_id
+        $user = Auth::user();
+        
+        // Only superadmins can see all warehouses, others see only their own warehouse
+        if ($user && $user->warehouse_id) {
+            // Check if the user is a superadmin (who should see all warehouses)
+            $isSuperadmin = DB::table('model_has_roles')
+                ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+                ->where('model_has_roles.model_id', $user->id)
+                ->where('roles.name', 'superadmin')
+                ->exists();
+            
+            // If not a superadmin, filter by warehouse_id
+            if (!$isSuperadmin) {
+                $query->where('warehouse_id', $user->warehouse_id);
+            }
+        }
+        
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('item_name')->label('Item'),
@@ -34,7 +54,7 @@ class StockViewer extends Page implements Tables\Contracts\HasTable
             ])
             ->actions([])
             ->bulkActions([])
-            ->query(StockSummary::query());
+            ->query($query);
     }
 }
 
