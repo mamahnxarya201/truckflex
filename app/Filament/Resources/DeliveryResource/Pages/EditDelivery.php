@@ -5,6 +5,7 @@ namespace App\Filament\Resources\DeliveryResource\Pages;
 use App\Filament\Resources\DeliveryResource;
 use App\Models\DeliveryStatus;
 use App\Models\LedgerFactual;
+use App\Models\LedgerVirtual;
 use App\Models\Rack;
 use App\Models\VehicleLog;
 use Filament\Actions;
@@ -96,15 +97,29 @@ class EditDelivery extends EditRecord
                         
                     if (!$sourceRack) continue;
                     
+                    // Create virtual ledger entry first
+                    $virtualEntry = LedgerVirtual::create([
+                        'item_id' => $detail->item_id,
+                        'from_warehouse_id' => $record->from_warehouse_id,
+                        'to_warehouse_id' => null,
+                        'quantity' => -1 * $detail->quantity, // Negative for outbound
+                        'movement_type' => "outbound",
+                        'source_type' => "delivery",
+                        'source_id' => $record->id,
+                        'planned_by' => auth()->id(),
+                        'planned_at' => now(),
+                        'note' => 'Keluar dari gudang ' . $record->fromWarehouse->name . ' untuk pengiriman ' . $record->delivery_code,
+                    ]);
+                    
                     // Create outgoing ledger entry
                     LedgerFactual::create([
                         'item_id' => $detail->item_id,
                         'from_rack_id' => $sourceRack->id,
                         'to_rack_id' => null,
-                        'quantity' => $detail->quantity,
+                        'quantity' => -1 * $detail->quantity, // Negative for outbound
                         'movement_type' => "outbound",
-                        'source_id' => $record->id,
-                        'source_type' => "delivery",
+                        'source_id' => $virtualEntry->id,
+                        'source_type' => "ledger_virtual",
                         'noted_by' => auth()->id(),
                         'log_time' => $record->departure_date ?? now(),
                         'note' => 'Keluar dari gudang ' . $record->fromWarehouse->name . ' untuk pengiriman ' . $record->delivery_code,
@@ -131,18 +146,66 @@ class EditDelivery extends EditRecord
                         ->first();
                         
                     if ($sourceRack) {
+                        // 1. Create virtual ledger entries first
+                        $outboundVirtual = LedgerVirtual::create([
+                            'item_id' => $detail->item_id,
+                            'from_warehouse_id' => $record->from_warehouse_id,
+                            'to_warehouse_id' => null,
+                            'quantity' => -1 * $detail->quantity, // Negative for outbound
+                            'movement_type' => "outbound",
+                            'source_type' => "delivery",
+                            'source_id' => $record->id,
+                            'planned_by' => auth()->id(),
+                            'planned_at' => now(),
+                            'note' => 'Keluar dari gudang ' . $record->fromWarehouse->name . ' untuk pengiriman ' . $record->delivery_code,
+                        ]);
+                        
+                        $inboundVirtual = LedgerVirtual::create([
+                            'item_id' => $detail->item_id,
+                            'from_warehouse_id' => null,
+                            'to_warehouse_id' => $record->to_warehouse_id,
+                            'quantity' => $detail->quantity,
+                            'movement_type' => "inbound",
+                            'source_type' => "delivery",
+                            'source_id' => $record->id,
+                            'planned_by' => auth()->id(),
+                            'planned_at' => now(),
+                            'note' => 'Masuk ke gudang ' . $record->toWarehouse->name . ' dari pengiriman ' . $record->delivery_code,
+                        ]);
+                        
+                        // 2. Then create factual ledger entries
                         LedgerFactual::create([
                             'item_id' => $detail->item_id,
                             'from_rack_id' => $sourceRack->id,
                             'to_rack_id' => null,
-                            'quantity' => $detail->quantity,
+                            'quantity' => -1 * $detail->quantity, // Negative for outbound
                             'movement_type' => "outbound",
-                            'source_id' => $record->id,
-                            'source_type' => "delivery",
+                            'source_id' => $outboundVirtual->id,
+                            'source_type' => "ledger_virtual",
                             'noted_by' => auth()->id(),
                             'log_time' => $record->departure_date ?? $record->created_at,
                             'note' => 'Keluar dari gudang ' . $record->fromWarehouse->name . ' untuk pengiriman ' . $record->delivery_code,
                         ]);
+                        
+                        // Create incoming ledger entry
+                        $destRack = Rack::where('warehouse_id', $record->to_warehouse_id)
+                            ->where('is_active', true)
+                            ->first();
+                            
+                        if ($destRack) {
+                            LedgerFactual::create([
+                                'item_id' => $detail->item_id,
+                                'from_rack_id' => null,
+                                'to_rack_id' => $destRack->id,
+                                'quantity' => $detail->quantity,
+                                'movement_type' => "inbound",
+                                'source_id' => $inboundVirtual->id,
+                                'source_type' => "ledger_virtual",
+                                'noted_by' => auth()->id(),
+                                'log_time' => $record->arrival_date ?? now(),
+                                'note' => 'Masuk ke gudang ' . $record->toWarehouse->name . ' dari pengiriman ' . $record->delivery_code,
+                            ]);
+                        }
                     }
                 }
                 
@@ -155,20 +218,34 @@ class EditDelivery extends EditRecord
                 ])->exists();
                 
                 if (!$existingIncoming) {
-                    // Create incoming entry
+                    // Create incoming ledger entry
                     $destRack = Rack::where('warehouse_id', $record->to_warehouse_id)
                         ->where('is_active', true)
                         ->first();
                         
                     if ($destRack) {
+                        // Create virtual ledger entry first
+                        $virtualEntry = LedgerVirtual::create([
+                            'item_id' => $detail->item_id,
+                            'from_warehouse_id' => null,
+                            'to_warehouse_id' => $record->to_warehouse_id,
+                            'quantity' => $detail->quantity,
+                            'movement_type' => "inbound",
+                            'source_type' => "delivery",
+                            'source_id' => $record->id,
+                            'planned_by' => auth()->id(),
+                            'planned_at' => now(),
+                            'note' => 'Masuk ke gudang ' . $record->toWarehouse->name . ' dari pengiriman ' . $record->delivery_code,
+                        ]);
+                        
                         LedgerFactual::create([
                             'item_id' => $detail->item_id,
                             'from_rack_id' => null,
                             'to_rack_id' => $destRack->id,
                             'quantity' => $detail->quantity,
                             'movement_type' => "inbound",
-                            'source_id' => $record->id,
-                            'source_type' => "delivery",
+                            'source_id' => $virtualEntry->id,
+                            'source_type' => "ledger_virtual",
                             'noted_by' => auth()->id(),
                             'log_time' => $record->arrival_date ?? now(),
                             'note' => 'Masuk ke gudang ' . $record->toWarehouse->name . ' dari pengiriman ' . $record->delivery_code,
