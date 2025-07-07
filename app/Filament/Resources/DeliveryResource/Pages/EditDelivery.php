@@ -3,12 +3,197 @@
 namespace App\Filament\Resources\DeliveryResource\Pages;
 
 use App\Filament\Resources\DeliveryResource;
+use App\Models\DeliveryStatus;
+use App\Models\LedgerFactual;
+use App\Models\Rack;
+use App\Models\VehicleLog;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class EditDelivery extends EditRecord
 {
     protected static string $resource = DeliveryResource::class;
+
+    protected function afterSave(): void
+    {
+        // Update vehicle log when delivery is updated
+        $this->updateVehicleLog($this->record);
+        
+        // Check if status has changed and create appropriate ledger entries
+        $this->handleStatusChange($this->record);
+        
+        // Show success notification
+        Notification::make('updated_delivery')
+            ->title('Pengiriman diperbarui')
+            ->body('Pengiriman ' . $this->record->delivery_code . ' berhasil diperbarui')
+            ->success()
+            ->send();
+    }
+    
+    /**
+     * Update or create vehicle log entry
+     */
+    private function updateVehicleLog(Model $record): void
+    {
+        if (!$record->vehicle_id) return;
+        
+        $vehicleLogs = VehicleLog::where('delivery_id', $record->id)->get();
+        
+        if ($vehicleLogs->isEmpty()) {
+            // Create new log if none exists
+            VehicleLog::create([
+                'vehicle_id' => $record->vehicle_id,
+                'driver_id' => $record->driver_id,
+                'delivery_id' => $record->id,
+                'log_type' => 'trip',
+                'title' => 'Pengiriman ' . $record->delivery_code,
+                'note' => 'Penggunaan untuk pengiriman ' . $record->delivery_code,
+                'log_time' => $record->departure_date ?? now(),
+                'is_resolved' => true,
+            ]);
+        } else {
+            // Update existing vehicle logs
+            foreach ($vehicleLogs as $log) {
+                $log->update([
+                    'vehicle_id' => $record->vehicle_id,
+                    'driver_id' => $record->driver_id,
+                    'log_type' => 'trip',
+                    'title' => 'Pengiriman ' . $record->delivery_code,
+                    'log_time' => $record->departure_date ?? $log->log_time,
+                    'note' => 'Penggunaan untuk pengiriman ' . $record->delivery_code,
+                    'is_resolved' => true,
+                ]);
+            }
+        }
+    }
+    
+    /**
+     * Handle creation of ledger entries based on status changes
+     */
+    private function handleStatusChange(Model $record): void
+    {
+        $status = $record->status;
+        if (!$status) return;
+        
+        // If status is in_transit, create outgoing ledger entries if they don't exist
+        if ($status->code === 'in_transit') {
+            foreach ($record->details as $detail) {
+                // Check if outgoing entry already exists for this item
+                $existingOutgoing = LedgerFactual::where([
+                    'source_id' => $record->id,
+                    'source_type' => 'delivery',
+                    'item_id' => $detail->item_id,
+                    'movement_type' => 'outgoing',
+                ])->exists();
+                
+                if (!$existingOutgoing) {
+                    // Find a suitable rack in the source warehouse
+                    $sourceRack = Rack::where('warehouse_id', $record->from_warehouse_id)
+                        ->where('is_active', true)
+                        ->first();
+                        
+                    if (!$sourceRack) continue;
+                    
+                    // Create outgoing ledger entry
+                    LedgerFactual::create([
+                        'item_id' => $detail->item_id,
+                        'from_rack_id' => $sourceRack->id,
+                        'to_rack_id' => null,
+                        'quantity' => $detail->quantity,
+                        'movement_type' => "outbound",
+                        'source_id' => $record->id,
+                        'source_type' => "delivery",
+                        'noted_by' => auth()->id(),
+                        'log_time' => $record->departure_date ?? now(),
+                        'note' => 'Keluar dari gudang ' . $record->fromWarehouse->name . ' untuk pengiriman ' . $record->delivery_code,
+                    ]);
+                }
+            }
+        }
+        
+        // If status is arrived, create incoming ledger entries if they don't exist
+        if ($status->code === 'arrived') {
+            foreach ($record->details as $detail) {
+                // Check if outgoing entry already exists for this item
+                $existingOutgoing = LedgerFactual::where([
+                    'source_id' => $record->id,
+                    'source_type' => 'delivery',
+                    'item_id' => $detail->item_id,
+                    'movement_type' => 'outgoing',
+                ])->exists();
+                
+                if (!$existingOutgoing) {
+                    // Need to create outgoing entry first
+                    $sourceRack = Rack::where('warehouse_id', $record->from_warehouse_id)
+                        ->where('is_active', true)
+                        ->first();
+                        
+                    if ($sourceRack) {
+                        LedgerFactual::create([
+                            'item_id' => $detail->item_id,
+                            'from_rack_id' => $sourceRack->id,
+                            'to_rack_id' => null,
+                            'quantity' => $detail->quantity,
+                            'movement_type' => "outbound",
+                            'source_id' => $record->id,
+                            'source_type' => "delivery",
+                            'noted_by' => auth()->id(),
+                            'log_time' => $record->departure_date ?? $record->created_at,
+                            'note' => 'Keluar dari gudang ' . $record->fromWarehouse->name . ' untuk pengiriman ' . $record->delivery_code,
+                        ]);
+                    }
+                }
+                
+                // Check if incoming entry already exists for this item
+                $existingIncoming = LedgerFactual::where([
+                    'source_id' => $record->id,
+                    'source_type' => 'delivery',
+                    'item_id' => $detail->item_id,
+                    'movement_type' => 'incoming',
+                ])->exists();
+                
+                if (!$existingIncoming) {
+                    // Create incoming entry
+                    $destRack = Rack::where('warehouse_id', $record->to_warehouse_id)
+                        ->where('is_active', true)
+                        ->first();
+                        
+                    if ($destRack) {
+                        LedgerFactual::create([
+                            'item_id' => $detail->item_id,
+                            'from_rack_id' => null,
+                            'to_rack_id' => $destRack->id,
+                            'quantity' => $detail->quantity,
+                            'movement_type' => "inbound",
+                            'source_id' => $record->id,
+                            'source_type' => "delivery",
+                            'noted_by' => auth()->id(),
+                            'log_time' => $record->arrival_date ?? now(),
+                            'note' => 'Masuk ke gudang ' . $record->toWarehouse->name . ' dari pengiriman ' . $record->delivery_code,
+                        ]);
+                    }
+                }
+            }
+        }
+        
+        // If status is cancelled, mark ledger entries as cancelled
+        if ($status->code === 'cancelled') {
+            // Find all ledger entries related to this delivery
+            $ledgerEntries = LedgerFactual::where([
+                'source_id' => $record->id,
+                'source_type' => 'delivery',
+            ])->get();
+            
+            // Update each entry with a cancellation note
+            foreach ($ledgerEntries as $entry) {
+                $entry->update([
+                    'note' => $entry->note . ' [DIBATALKAN: ' . $record->note . ']',
+                ]);
+            }
+        }
+    }
 
     protected function getHeaderActions(): array
     {

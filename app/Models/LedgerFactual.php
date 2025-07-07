@@ -28,6 +28,8 @@ class LedgerFactual extends Model
     protected $casts = [
         'log_time' => 'datetime',
         'verified_at' => 'datetime',
+        'movement_type' => 'string',
+        'source_type' => 'string',
     ];
 
     public function item()

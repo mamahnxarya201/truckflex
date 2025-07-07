@@ -19,6 +19,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 class DeliveryResource extends Resource
@@ -55,11 +56,14 @@ class DeliveryResource extends Resource
     {
         return $form
             ->schema([
+                // Hidden field to track if this is an initial creation
+                Forms\Components\Hidden::make('is_new_record')
+                    ->default(true),
                 Forms\Components\Section::make('Informasi Dasar')
                     ->schema([
                         Forms\Components\TextInput::make('delivery_code')
                             ->label('Kode Pengiriman')
-                            ->required()
+                            // ->required()
                             ->unique(ignoreRecord: true)
                             ->placeholder('Otomatis jika kosong')
                             ->helperText('Kode unik untuk pengiriman ini'),
@@ -67,9 +71,9 @@ class DeliveryResource extends Resource
                         Forms\Components\Select::make('delivery_type')
                             ->label('Tipe Pengiriman')
                             ->options([
-                                'regular' => 'Reguler',
-                                'urgent' => 'Urgent',
-                                'return' => 'Pengembalian',
+                                'internal' => 'Internal',
+                                'customer' => 'Pelanggan',
+                                'supplier' => 'Pemasok',
                             ])
                             ->required(),
                             
@@ -110,7 +114,17 @@ class DeliveryResource extends Resource
                             ->relationship('fromWarehouse', 'name')
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                // Clear any selected items when warehouse changes
+                                $set('details', []);
+                                
+                                // Reset capacity warnings
+                                $set('capacity_warning', null);
+                                $set('capacity_status', 'ok');
+                                $set('item_warnings', []);
+                            }),
                             
                         Forms\Components\Select::make('to_warehouse_id')
                             ->label('Ke Gudang')
@@ -171,8 +185,169 @@ class DeliveryResource extends Resource
                             ->after('departure_date'),
                     ])->columns(3),
                 
+                Forms\Components\Section::make('Item Pengiriman')
+                    ->schema([
+                        Forms\Components\Repeater::make('details')
+                            ->label('Detail Item')
+                            ->relationship()
+                            ->schema([
+                                Forms\Components\Select::make('item_id')
+                                    ->label('Item')
+                                    ->options(function (Forms\Get $get, ?Model $record) {
+                                        $warehouseId = $get('../../from_warehouse_id');
+                                        if (!$warehouseId) {
+                                            return [];
+                                        }
+                                        
+                                        // Direct query to calculate available stock in warehouse
+                                        // First get all racks in the warehouse
+                                        $warehouseRacks = \App\Models\Rack::where('warehouse_id', $warehouseId)
+                                            ->where('is_active', true)
+                                            ->pluck('id')
+                                            ->toArray();
+                                            
+                                        if (empty($warehouseRacks)) {
+                                            return [];
+                                        }
+                                        
+                                        // Calculate stock levels using SQL query
+                                        $stockItems = \Illuminate\Support\Facades\DB::select(
+                                            "SELECT 
+                                                i.id as item_id,
+                                                i.name as item_name,
+                                                SUM(CASE 
+                                                    WHEN lf.to_rack_id IN (" . implode(',', $warehouseRacks) . ") THEN lf.quantity 
+                                                    WHEN lf.from_rack_id IN (" . implode(',', $warehouseRacks) . ") THEN -lf.quantity 
+                                                    ELSE 0 
+                                                END) as stock_quantity
+                                            FROM 
+                                                items i
+                                            LEFT JOIN 
+                                                ledger_factual lf ON i.id = lf.item_id
+                                            GROUP BY 
+                                                i.id, i.name
+                                            HAVING 
+                                                stock_quantity > 0"
+                                        );
+                                        
+                                        // Format as options array for the dropdown
+                                        $items = collect($stockItems)->pluck('item_name', 'item_id')->toArray();
+                                        
+                                        // We'll store stock quantities in the session for validation purposes
+                                        session(['warehouse_'.$warehouseId.'_stock' => collect($stockItems)->pluck('stock_quantity', 'item_id')->toArray()]);
+                                        
+                                        return $items;
+                                    })
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        if (!$state) return;
+                                        
+                                        $item = \App\Models\Item::find($state);
+                                        if (!$item) return;
+                                        
+                                        // Set the unit from the item
+                                        $set('unit', $item->unit);
+                                        
+                                        // Set default quantity to 1 (or reset if changed)
+                                        $set('quantity', 1);
+                                        
+                                        // Set the weight based on item weight and default quantity
+                                        $weight = $item->weight_kg * 1;
+                                        $set('weight_kg', $weight);
+                                        
+                                        // Get available stock for this item from session
+                                        $warehouseId = $get('../../from_warehouse_id');
+                                        $stockQuantities = session('warehouse_'.$warehouseId.'_stock', []);
+                                        $availableStock = $stockQuantities[$state] ?? 0;
+                                        
+                                        // Store max available quantity for validation
+                                        $set('max_available', $availableStock);
+                                    }),
+                                
+                                Forms\Components\TextInput::make('quantity')
+                                    ->label('Jumlah')
+                                    ->numeric()
+                                    ->default(1)
+                                    ->minValue(1)
+                                    ->required()
+                                    ->rules([
+                                        fn (Forms\Get $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                            $maxAvailable = $get('max_available') ?? 0;
+                                            if ($value > $maxAvailable) {
+                                                $fail("Jumlah melebihi stok tersedia ({$maxAvailable})");
+                                            }
+                                        },
+                                    ])
+                                    ->helperText(fn (Forms\Get $get) => 'Stok tersedia: ' . ($get('max_available') ?? 0))
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        $itemId = $get('item_id');
+                                        if (!$itemId || !$state) return;
+                                        
+                                        $item = \App\Models\Item::find($itemId);
+                                        if (!$item) return;
+                                        
+                                        // Update weight based on new quantity
+                                        $weight = $item->weight_kg * $state;
+                                        $set('weight_kg', $weight);
+                                        
+                                        // We'll use a global event to trigger validation at the form level
+                                        // This avoids issues with trying to access parent fields directly
+                                        // Item weight update will be handled at form level
+                                    }),
+                                    
+                                Forms\Components\TextInput::make('unit')
+                                    ->label('Unit')
+                                    ->disabled()
+                                    ->dehydrated(),
+                                    
+                                Forms\Components\TextInput::make('weight_kg')
+                                    ->label('Berat (kg)')
+                                    ->numeric()
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->helperText('Berat dikalkulasi otomatis dari item dan jumlah'),
+                                    
+                                Forms\Components\Textarea::make('note')
+                                    ->label('Catatan Item')
+                                    ->placeholder('Catatan untuk item ini')
+                                    ->columnSpanFull()
+                                    ->nullable(),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(0)
+                            ->reorderable(false)
+                            ->columnSpanFull()
+                            ->afterStateUpdated(function (Forms\Get $get, Forms\Set $set) {
+                                // We can call validateVehicleCapacity directly here at the form level
+                                self::validateVehicleCapacity($get, $set);
+                            })
+                            ->live()
+                    ])
+                    ->columnSpanFull(),
+                    
+                Forms\Components\Section::make('Informasi Kapasitas')
+                    ->schema([
+                        Forms\Components\Placeholder::make('capacity_warning')
+                            ->label('Status Kapasitas')
+                            ->content(function (Forms\Get $get) {
+                                return $get('capacity_warning') ?? 'Belum ada item dipilih';
+                            })
+                            ->columnSpanFull(),
+                            
+                        Forms\Components\Hidden::make('capacity_warning'),
+                        Forms\Components\Hidden::make('capacity_status')
+                            ->default('ok'),
+                        Forms\Components\Hidden::make('item_warnings'),
+                    ])
+                    ->hidden(fn (Forms\Get $get) => !$get('vehicle_id'))
+                    ->columnSpanFull(),
+                    
                 Forms\Components\Textarea::make('note')
-                    ->label('Catatan')
+                    ->label('Catatan Pengiriman')
                     ->columnSpanFull()
                     ->nullable(),
             ]);
@@ -185,6 +360,12 @@ class DeliveryResource extends Resource
                 Tables\Columns\TextColumn::make('delivery_code')
                     ->label('Kode Pengiriman')
                     ->searchable(),
+                    
+                Tables\Columns\TextColumn::make('details_count')
+                    ->label('Jumlah Item')
+                    ->counts('details')
+                    ->badge()
+                    ->color('success'),
                 Tables\Columns\TextColumn::make('fromWarehouse.name')
                     ->label('Dari Gudang')
                     ->sortable()
@@ -435,6 +616,27 @@ class DeliveryResource extends Resource
         ];
     }
     
+    /**
+     * Create vehicle usage log entry
+     */
+    private static function createVehicleLog(Model $record): void
+    {
+        if (!$record->vehicle_id) return;
+        
+        // Create vehicle usage log
+        \App\Models\VehicleLog::create([
+            'vehicle_id' => $record->vehicle_id,
+            'driver_id' => $record->driver_id,
+            'delivery_id' => $record->id,
+            'start_time' => $record->departure_date,
+            'end_time' => $record->arrival_date,
+            'distance_km' => $record->distance_km ?? 0,
+            'fuel_usage_liters' => $record->fuel_usage ?? 0,
+            'note' => "Penggunaan untuk pengiriman {$record->delivery_code}",
+            'created_by' => auth()->id(),
+        ]);
+    }
+    
     // Helper function to validate if vehicle has enough capacity for items
     private static function validateVehicleCapacity(Forms\Get $get, Forms\Set $set): void
     {
@@ -460,7 +662,7 @@ class DeliveryResource extends Resource
             $item = \App\Models\Item::find($detail['item_id']);
             if (!$item) continue;
             
-            $itemTotalWeight = $item->weight_kg * $detail['quantity'];
+            $itemTotalWeight = ($detail['weight_kg'] ?? ($item->weight_kg * $detail['quantity']));
             $totalWeight += $itemTotalWeight;
             
             // Check if this single item's weight is close to capacity
