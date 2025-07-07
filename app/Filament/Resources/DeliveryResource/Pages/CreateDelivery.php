@@ -25,34 +25,21 @@ class CreateDelivery extends CreateRecord
         if (!$user) {
             return false;
         }
+
+        // Using typecasting for clarity when accessing user methods
+        /** @var \App\Models\User $user */
         
-        // Driver shouldn't be able to create deliveries
-        $isDriver = DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('model_has_roles.model_id', $user->id)
-            ->where('roles.name', 'driver')
-            ->exists();
-            
-        if ($isDriver) {
-            return false;
+        // Superadmin can create deliveries
+        if ($user->hasRole('superadmin')) {
+            return true;
         }
         
-        // Check if user is superadmin
-        $isSuperAdmin = DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('model_has_roles.model_id', $user->id)
-            ->where('roles.name', 'superadmin')
-            ->exists();
-            
-        // Check if user has manage-deliveries permission
-        $hasManageDeliveriesPermission = DB::table('model_has_permissions')
-            ->join('permissions', 'model_has_permissions.permission_id', '=', 'permissions.id')
-            ->where('model_has_permissions.model_id', $user->id)
-            ->where('permissions.name', 'manage-deliveries')
-            ->exists();
-            
-        // Only users with manage-deliveries permission or superadmins can create
-        return $isSuperAdmin || $hasManageDeliveriesPermission;
+        // Warehouse manager with manage-deliveries permission can create deliveries
+        if ($user->hasRole('warehouse_manager') && $user->hasPermissionTo('manage-deliveries')) {
+            return true;
+        }
+        
+        return false;
     }
     
     protected function afterCreate(): void

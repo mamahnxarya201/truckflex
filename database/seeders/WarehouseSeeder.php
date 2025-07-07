@@ -2,16 +2,19 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Warehouse;
+use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 
 class WarehouseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create Pusat warehouse user
+        // Create or get role reference
+        $warehouseManagerRole = Role::where('name', 'warehouse_manager')->first();
+        
+        // Create Pusat warehouse user with warehouse_manager role
         $pusatUser = User::firstOrCreate(
             ['email' => 'gudangpusat@truckflex.com'],
             [
@@ -19,6 +22,11 @@ class WarehouseSeeder extends Seeder
                 'password' => '12345678',
             ]
         );
+        
+        // Assign warehouse_manager role if it exists
+        if ($warehouseManagerRole) {
+            $pusatUser->assignRole($warehouseManagerRole);
+        }
         
         // Create Pusat warehouse
         $pusatWarehouse = Warehouse::create([

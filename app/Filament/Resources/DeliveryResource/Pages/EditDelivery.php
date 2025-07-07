@@ -29,46 +29,25 @@ class EditDelivery extends EditRecord
         // Get the current delivery
         $delivery = $this->getRecord();
         
-        // Check if user is driver
-        $isDriver = DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('model_has_roles.model_id', $user->id)
-            ->where('roles.name', 'driver')
-            ->exists();
-            
-        if ($isDriver) {
-            // Drivers can't edit deliveries at all
-            return false;
-        }
+        // Using typecasting for clarity when accessing user methods
+        /** @var \App\Models\User $user */
         
-        // Check if user is superadmin
-        $isSuperAdmin = DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('model_has_roles.model_id', $user->id)
-            ->where('roles.name', 'superadmin')
-            ->exists();
-            
-        // Superadmins can edit any delivery
-        if ($isSuperAdmin) {
+        // Superadmin can edit any delivery
+        if ($user->hasRole('superadmin')) {
             return true;
         }
         
-        // Check if user has manage-deliveries permission
-        $hasManageDeliveriesPermission = DB::table('model_has_permissions')
-            ->join('permissions', 'model_has_permissions.permission_id', '=', 'permissions.id')
-            ->where('model_has_permissions.model_id', $user->id)
-            ->where('permissions.name', 'manage-deliveries')
-            ->exists();
-            
-        // If user has no permissions to manage deliveries, they can't edit
-        if (!$hasManageDeliveriesPermission) {
+        // Driver cannot edit deliveries
+        if ($user->hasRole('driver')) {
             return false;
         }
         
-        // For warehouse workers/admins, they can only edit deliveries related to their warehouse
-        if ($user->warehouse_id) {
-            return $delivery->from_warehouse_id === $user->warehouse_id || 
-                   $delivery->to_warehouse_id === $user->warehouse_id;
+        // Warehouse manager with manage-deliveries permission can edit deliveries related to their warehouse
+        if ($user->hasRole('warehouse_manager') && $user->hasPermissionTo('manage-deliveries')) {
+            return $user->warehouse_id && (
+                $delivery->from_warehouse_id === $user->warehouse_id || 
+                $delivery->to_warehouse_id === $user->warehouse_id
+            );
         }
         
         return false;

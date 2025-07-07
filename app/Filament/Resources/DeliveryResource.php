@@ -20,7 +20,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class DeliveryResource extends Resource
 {
@@ -43,26 +42,23 @@ class DeliveryResource extends Resource
             return $query;
         }
         
+        // Using typecasting for clarity when accessing user methods
+        /** @var \App\Models\User $user */
+        
         // Driver can only see deliveries assigned to them
-        $isDriver = DB::table('model_has_roles')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->where('model_has_roles.model_id', $user->id)
-            ->where('roles.name', 'driver')
-            ->exists();
-            
-        if ($isDriver) {
+        if ($user->hasRole('driver')) {
             return $query->where('driver_id', $user->id);
         }
         
-        // Warehouse worker/admin can only see deliveries related to their warehouse
-        if ($user->warehouse_id) {
-            $warehouseId = $user->warehouse_id;
-            $query->where(function ($q) use ($warehouseId) {
-                $q->where('from_warehouse_id', $warehouseId)
-                  ->orWhere('to_warehouse_id', $warehouseId);
+        // Warehouse manager can only see deliveries related to their warehouse
+        if ($user->hasRole('warehouse_manager') && $user->warehouse_id) {
+            return $query->where(function($query) use ($user) {
+                $query->where('from_warehouse_id', $user->warehouse_id)
+                      ->orWhere('to_warehouse_id', $user->warehouse_id);
             });
         }
         
+        // Superadmin sees all deliveries
         return $query;
     }
     
