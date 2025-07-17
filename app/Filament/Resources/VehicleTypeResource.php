@@ -24,6 +24,36 @@ class VehicleTypeResource extends Resource
         $user = auth()->user();
         return $user && ($user->hasRole('superadmin') || $user->hasRole('warehouse_manager'));
     }
+    /**
+     * Check whether the user can edit the model
+     */
+    public static function canEdit(?object $record): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && $user->hasRole('superadmin');
+    }
+    
+    /**
+     * Check whether the user can create a new model
+     */
+    public static function canCreate(): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && $user->hasRole('superadmin');
+    }
+    
+    /**
+     * Check whether the user can delete the model
+     */
+    public static function canDelete(?object $record): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && $user->hasRole('superadmin');
+    }
+    
     protected static ?string $model = VehicleType::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';

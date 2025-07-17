@@ -86,9 +86,8 @@ class DeliveryResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('delivery_code')
                             ->label('Kode Pengiriman')
-                            // ->required()
+                            ->required()
                             ->unique(ignoreRecord: true)
-                            ->placeholder('Otomatis jika kosong')
                             ->helperText('Kode unik untuk pengiriman ini'),
                             
                         Forms\Components\Select::make('delivery_type')
@@ -175,14 +174,20 @@ class DeliveryResource extends Resource
                             
                         Forms\Components\Select::make('driver_id')
                             ->label('Driver')
-                            ->relationship('driver', 'name')
+                            ->relationship('driver', 'name', fn (Builder $query) => 
+                                $query->role('driver')
+                            )
                             ->searchable()
                             ->preload()
                             ->required(),
                             
                         Forms\Components\Select::make('validated_by')
                             ->label('Divalidasi Oleh')
-                            ->relationship('validator', 'name')
+                            ->relationship('validator', 'name', fn (Builder $query) => 
+                                $query->whereDoesntHave('roles', function($q) {
+                                    $q->where('name', 'driver');
+                                })
+                            )
                             ->searchable()
                             ->preload()
                             ->nullable(),

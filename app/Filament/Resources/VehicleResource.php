@@ -35,7 +35,7 @@ class VehicleResource extends Resource
     {
         /** @var \App\Models\User $user */
         $user = auth()->user();
-        return $user && !$user->hasRole('driver');
+        return $user && !$user->hasRole('driver') && !$user->hasRole('warehouse_manager');
     }
     
     /**
@@ -45,7 +45,7 @@ class VehicleResource extends Resource
     {
         /** @var \App\Models\User $user */
         $user = auth()->user();
-        return $user && !$user->hasRole('driver');
+        return $user && !$user->hasRole('driver') && !$user->hasRole('warehouse_manager');
     }
     
     /**
@@ -55,7 +55,7 @@ class VehicleResource extends Resource
     {
         /** @var \App\Models\User $user */
         $user = auth()->user();
-        return $user && !$user->hasRole('driver');
+        return $user && !$user->hasRole('driver') && !$user->hasRole('warehouse_manager');
     }
 
     public static function form(Form $form): Form

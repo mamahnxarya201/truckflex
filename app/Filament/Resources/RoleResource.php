@@ -27,7 +27,7 @@ class RoleResource extends Resource
     {
         /** @var \App\Models\User $user */
         $user = auth()->user();
-        return $user && !$user->hasRole('driver');
+        return $user && $user->hasRole('superadmin');
     }
 
     public static function getNavigationBadge(): ?string
