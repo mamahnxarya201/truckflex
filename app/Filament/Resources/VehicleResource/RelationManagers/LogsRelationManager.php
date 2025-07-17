@@ -16,6 +16,36 @@ class LogsRelationManager extends RelationManager
     protected static string $relationship = 'logs';
     protected static ?string $title = 'Catatan Kendaraan';
     protected static ?string $recordTitleAttribute = 'id';
+    
+    /**
+     * Allow drivers to create logs for vehicles they can access
+     */
+    public function canCreate(): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && ($user->hasPermissionTo('create-vehicle-logs') || !$user->hasRole('driver'));
+    }
+    
+    /**
+     * Only admins and warehouse managers can edit logs
+     */
+    public function canEdit(object $record): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && !$user->hasRole('driver');
+    }
+    
+    /**
+     * Only admins and warehouse managers can delete logs
+     */
+    public function canDelete(object $record): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && !$user->hasRole('driver');
+    }
 
     public function form(Form $form): Form
     {

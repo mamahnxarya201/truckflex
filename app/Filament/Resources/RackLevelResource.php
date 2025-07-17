@@ -22,6 +22,16 @@ class RackLevelResource extends Resource
     protected static ?string $navigationGroup = 'Master Data Penyimpanan';
     protected static ?string $modelLabel = 'Level Rak';
     protected static ?string $pluralModelLabel = 'Level Rak';
+    
+    /**
+     * Control access to this resource
+     */
+    public static function canAccess(): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && $user->hasPermissionTo('view-rack-levels');
+    }
 
     public static function form(Form $form): Form
     {

@@ -33,6 +33,14 @@ class AuthorizationSeeder extends Seeder
         Permission::create(['name' => 'manage-incoming']);
         Permission::create(['name' => 'manage-outgoing']);
         Permission::create(['name' => 'view-reports']);
+        Permission::create(['name' => 'create-vehicle-logs']);
+        Permission::create(['name' => 'view-vehicle-types']);
+        
+        // Rack management permissions
+        Permission::create(['name' => 'view-rack-blocks']);
+        Permission::create(['name' => 'manage-rack-blocks']);
+        Permission::create(['name' => 'view-rack-levels']);
+        Permission::create(['name' => 'manage-rack-levels']);
 
         // Superadmin role - has all permissions
         $superadminRole = Role::create(['name' => 'superadmin']);
@@ -49,7 +57,11 @@ class AuthorizationSeeder extends Seeder
             'view-all-stock',
             'manage-incoming',
             'manage-outgoing',
-            'view-reports'
+            'view-reports',
+            'view-rack-blocks',
+            'manage-rack-blocks',
+            'view-rack-levels',
+            'manage-rack-levels'
         ]);
 
         // Warehouse Manager role - can manage their assigned warehouse
@@ -66,7 +78,11 @@ class AuthorizationSeeder extends Seeder
             'view-all-stock',         // Can view stock inventory
             'manage-incoming',        // Can manage incoming inventory
             'manage-outgoing',        // Can manage outgoing inventory
-            'view-reports'            // Can view reports related to their warehouse
+            'view-reports',            // Can view reports related to their warehouse
+            'view-rack-blocks',       // Can view rack blocks
+            'manage-rack-blocks',     // Can manage rack blocks
+            'view-rack-levels',       // Can view rack levels
+            'manage-rack-levels'      // Can manage rack levels
         ]);
         
         // Driver role - can only see assigned deliveries and vehicles
@@ -74,7 +90,8 @@ class AuthorizationSeeder extends Seeder
         $driverRole->givePermissionTo([
             'view-assigned-deliveries',
             'view-vehicles',
-            'view-reports'        // Limited reports for their deliveries
+            'view-reports',       // Limited reports for their deliveries
+            'create-vehicle-logs' // Allow drivers to add vehicle logs
         ]);
 
         // Create users with our new unified role structure

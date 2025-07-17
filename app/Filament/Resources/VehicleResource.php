@@ -27,6 +27,36 @@ class VehicleResource extends Resource
     {
         return static::getModel()::count();
     }
+    
+    /**
+     * Check whether the user can edit the model
+     */
+    public static function canEdit(?object $record): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && !$user->hasRole('driver');
+    }
+    
+    /**
+     * Check whether the user can create a new model
+     */
+    public static function canCreate(): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && !$user->hasRole('driver');
+    }
+    
+    /**
+     * Check whether the user can delete the model
+     */
+    public static function canDelete(?object $record): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && !$user->hasRole('driver');
+    }
 
     public static function form(Form $form): Form
     {

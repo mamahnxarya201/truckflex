@@ -15,6 +15,15 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class VehicleTypeResource extends Resource
 {
+    /**
+     * Control access to this resource
+     */
+    public static function canAccess(): bool
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        return $user && ($user->hasRole('superadmin') || $user->hasRole('warehouse_manager'));
+    }
     protected static ?string $model = VehicleType::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
