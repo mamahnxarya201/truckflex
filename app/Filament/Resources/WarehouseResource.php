@@ -25,6 +25,24 @@ class WarehouseResource extends Resource
     protected static ?string $navigationGroup = 'Master Data Penyimpanan';
     protected static ?string $modelLabel = 'Gudang';
     protected static ?string $pluralModelLabel = 'Gudang';
+    
+    /**
+     * Filter warehouses based on user role - warehouse managers only see their own
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        
+        // If user is a warehouse manager, only show warehouses they manage
+        if ($user && $user->hasRole('warehouse_manager')) {
+            $query->where('manager_id', $user->id);
+        }
+        
+        return $query;
+    }
 
     public static function form(Form $form): Form
     {
